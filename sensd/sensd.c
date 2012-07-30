@@ -36,6 +36,9 @@
 #include <errno.h>
 #include <signal.h>
 #include "devtag-allinone.h"
+/* Start added by Alp Sayin */
+#include <sys/wait.h>
+/* Finish added by Alp Sayin */
 
 #define VERSION "2.2 120625"
 #define END_OF_FILE 26
@@ -248,7 +251,12 @@ int main(int ac, char *av[])
 	int res;
 	int i, done, len, idx;
 	char *prog = basename (av[0]);
+	/* Start added by Alp Sayin */
+#define PACKET_BUFFER_SIZE 144
+	int forkVal=0, packetBufferIndex=0;
+	char packetBuffer[PACKET_BUFFER_SIZE+1];
 
+	/* Finish added by Alp Sayin */
 	if (strcmp(prog, "tty_talk") == 0)  {
 	  invokation = INV_TTY_TALK;
 	  baud = B9600;
@@ -496,6 +504,63 @@ TABDLY BSDLY VTDLY FFDLY
 		      buf[j] = 0;
 		      strcat(outbuf, buf);
 		      write(1, outbuf, strlen(outbuf));
+		      
+
+		      /*! start: added by Alp Sayin */
+		      if(!filename)
+			{
+			  /*! if there is enough space in the buffer */
+			  if(packetBufferIndex+strlen(outbuf)+2 < PACKET_BUFFER_SIZE)
+			    {
+			      //		        	printf("buffer free, index=%d\n", packetBufferIndex); //DEBUG
+			      /*! add a newline character to the buffer */
+			      packetBuffer[packetBufferIndex++]='\\';
+			      packetBuffer[packetBufferIndex++]='n';
+			      /*! copy the new data to the packet buffer */
+			      memcpy(packetBuffer+packetBufferIndex, outbuf, strlen(outbuf));
+			      /*! increment the index */
+			      packetBufferIndex+=strlen(outbuf);
+			    }
+			  else /*! if there is not enough space in the buffer */
+			    {
+			      //		        	printf("buffer full, index=%d\n", packetBufferIndex); //DEBUG
+			      /*! null terminate the packet buffer for safety
+			       *  no need to check the index
+			       *  there is always at least one more space because of the buffer's size */
+			      packetBuffer[packetBufferIndex++]=0x00;
+			      /*! wait for all child processes that has NOT EXITED
+			       *  If congestion occurs due to a slow link
+			       *  some packets will be lost due to this wait
+			       * */
+			      //					printf("waiting for %d\n", forkVal); //DEBUG
+			      waitid(P_ALL, 0, NULL, WEXITED);
+			      //					printf("awake again\n"); //DEBUG
+			      /*! fork out to two processes */
+			      forkVal = fork();
+			      /*! replace the child's job to send away the incoming data */
+			      if (forkVal == 0)
+				{
+				  if (execlp("sendItAway.sh", " ", packetBuffer, NULL))
+				    {
+				      //							printf("errno=%d", errno); //DEBUG
+				      /*! making sure the child dies anyway */
+				      return 0;
+				    }
+				}
+			      //					printf("child pid = %d\n", forkVal); //DEBUG
+			      /*! parent continues to do his job
+			       *  empty the buffer */
+			      packetBufferIndex=0;
+			      /*! add a newline character to the buffer */
+			      packetBuffer[packetBufferIndex++]='\\';
+			      packetBuffer[packetBufferIndex++]='n';
+			      /*! copy the new data to the packet buffer */
+			      memcpy(packetBuffer+packetBufferIndex, outbuf, strlen(outbuf));
+			      /*! increment the index */
+			      packetBufferIndex+=strlen(outbuf);
+			    }
+			}
+		      /*! finish: added by Alp Sayin */
 		      
 		      j = -1;
 		      
