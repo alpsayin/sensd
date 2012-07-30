@@ -1,3 +1,6 @@
+Taken from: https://github.com/herjulf/sensd
+A small modification is made to send away the taken data via another application. Current solution is only temporary, since calling a bash script is not the best solution. But it works for the purpose.
+
               WSN sensor daemon and supporting utilities
               ------------------------------------------
 
