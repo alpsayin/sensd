@@ -259,6 +259,11 @@ int report(const char *buf, const char *reportpath)
 		val = strchr(s, '=');
 		if(val) {
 			*val++ = 0;
+			if(*s == '[') s++;
+			if(!*n) {
+				if(*val && val[strlen(val)-1] == '\n') val[strlen(val)-1] = 0;
+				if(*val && val[strlen(val)-1] == ']') val[strlen(val)-1] = 0;
+			}
 			if(!id) {
 				if((strcmp(s, "ID")==0) && *val) {
 					id = val;
@@ -505,7 +510,7 @@ TABDLY BSDLY VTDLY FFDLY
 	  int i, lfp;
 	  char str[10];
 	  if(getppid() == 1) 
-	    return; /* Already a daemon */
+	    return 0; /* Already a daemon */
 
 	  i = fork();
 
